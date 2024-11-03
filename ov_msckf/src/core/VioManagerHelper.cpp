@@ -37,7 +37,7 @@ using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
 
-void VioManager::initialize_with_gt(Eigen::Matrix<double, 17, 1> imustate) {
+void VioManager::initialize_with_gt(Eigen::Matrix<double, 17, 1> imustate, bool reinit) {
 
   // Initialize the system
   state->_imu->set_value(imustate.block(1, 0, 16, 1));
@@ -46,10 +46,19 @@ void VioManager::initialize_with_gt(Eigen::Matrix<double, 17, 1> imustate) {
   // Fix the global yaw and position gauge freedoms
   // TODO: Why does this break out simulation consistency metrics?
   std::vector<std::shared_ptr<ov_type::Type>> order = {state->_imu};
-  Eigen::MatrixXd Cov = std::pow(0.02, 2) * Eigen::MatrixXd::Identity(state->_imu->size(), state->_imu->size());
-  Cov.block(0, 0, 3, 3) = std::pow(0.017, 2) * Eigen::Matrix3d::Identity(); // q
-  Cov.block(3, 3, 3, 3) = std::pow(0.05, 2) * Eigen::Matrix3d::Identity();  // p
-  Cov.block(6, 6, 3, 3) = std::pow(0.01, 2) * Eigen::Matrix3d::Identity();  // v (static)
+  Eigen::MatrixXd Cov;
+  // Increase covariance if we are reinitializing
+  if (reinit) {
+    Cov = std::pow(0.1, 2) * Eigen::MatrixXd::Identity(state->_imu->size(), state->_imu->size());
+    Cov.block(0, 0, 3, 3) = std::pow(0.1, 2) * Eigen::Matrix3d::Identity();  // q
+    Cov.block(3, 3, 3, 3) = std::pow(0.25, 2) * Eigen::Matrix3d::Identity(); // p
+    Cov.block(6, 6, 3, 3) = std::pow(0.05, 2) * Eigen::Matrix3d::Identity(); // v (static)
+  } else {
+    Cov = std::pow(0.02, 2) * Eigen::MatrixXd::Identity(state->_imu->size(), state->_imu->size());
+    Cov.block(0, 0, 3, 3) = std::pow(0.017, 2) * Eigen::Matrix3d::Identity(); // q
+    Cov.block(3, 3, 3, 3) = std::pow(0.05, 2) * Eigen::Matrix3d::Identity();  // p
+    Cov.block(6, 6, 3, 3) = std::pow(0.01, 2) * Eigen::Matrix3d::Identity();  // v (static)
+  }
   StateHelper::set_initial_covariance(state, Cov, order);
 
   // Set the state time
