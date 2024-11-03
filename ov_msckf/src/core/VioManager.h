@@ -66,7 +66,9 @@ public:
    * @brief Default constructor, will load all configuration variables
    * @param params_ Parameters loaded from either ROS or CMDLINE
    */
-  VioManager(VioManagerOptions &params_);
+  VioManager(VioManagerOptions &params_, const std::string name = "default");
+
+  ~VioManager() { PRINT_WARNING(RED "VIOManager %s destroyed\n" RESET, name.c_str()); }
 
   /**
    * @brief Feed function for inertial data
@@ -135,6 +137,9 @@ public:
     feat_posinG = active_tracks_posinG;
     feat_tracks_uvd = active_tracks_uvd;
   }
+
+  ///  Name accessor
+  const std::string name;
 
 protected:
   /**

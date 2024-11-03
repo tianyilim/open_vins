@@ -643,3 +643,36 @@ void StateHelper::marginalize_slam(std::shared_ptr<State> state) {
     }
   }
 }
+
+void StateHelper::marginalize_all_clones(std::shared_ptr<State> state) {
+  PRINT_INFO(RED "Marginalizing all clones\n" RESET);
+
+  std::lock_guard<std::mutex> lock(state->_mutex_state);
+  // Marginalize from oldest to newest
+  while ((int)state->_clones_IMU.size() > 0) {
+
+    // We already have the lock, so we just copy the code in margtimestep()
+    double marginal_time = INFINITY;
+    for (const auto &clone_imu : state->_clones_IMU) {
+      if (clone_imu.first < marginal_time) {
+        marginal_time = clone_imu.first;
+      }
+    }
+
+    assert(marginal_time != INFINITY);
+    StateHelper::marginalize(state, state->_clones_IMU.at(marginal_time));
+    state->_clones_IMU.erase(marginal_time);
+  }
+}
+
+void StateHelper::marginalize_all_slam(std::shared_ptr<State> state) {
+  PRINT_INFO(RED "Marginalizing all SLAM features!\n" RESET);
+
+  int ct_marginalized = 0;
+  auto it0 = state->_features_SLAM.begin();
+  while (it0 != state->_features_SLAM.end()) {
+    StateHelper::marginalize(state, (*it0).second);
+    it0 = state->_features_SLAM.erase(it0);
+    ct_marginalized++;
+  }
+}

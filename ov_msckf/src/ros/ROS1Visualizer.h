@@ -114,6 +114,8 @@ public:
   /// Callback for synchronized stereo camera information
   void callback_stereo(const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1, int cam_id0, int cam_id1);
 
+  std::shared_ptr<VioManager> get_vio_manager() { return _app; }
+
 protected:
   /// Publish the current state
   void publish_state();
@@ -188,6 +190,13 @@ protected:
 
   // Our groundtruth states
   std::map<double, Eigen::Matrix<double, 17, 1>> gt_states;
+
+  // If this not null it means we reset the EKF recently. It will contain the last known state of the 
+  // system before the reset, and can be used to quickly reset the system to a known state.
+  std::unique_ptr<Eigen::Matrix<double, 17, 1>> reset_state;
+  
+  // number of times reset
+  int reset_counter = 0;
 
   // For path viz
   unsigned int poses_seq_gt = 0;

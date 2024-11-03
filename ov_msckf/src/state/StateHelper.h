@@ -224,10 +224,26 @@ public:
   static void marginalize_old_clone(std::shared_ptr<State> state);
 
   /**
+   * @brief Remove all clones when resetting the system virtually
+   *
+   * This will marginalize all clones from our covariance, and remove it from our state.
+   *
+   * @param state Pointer to state
+   */
+  static void marginalize_all_clones(std::shared_ptr<State> state);
+
+  /**
    * @brief Marginalize bad SLAM features
    * @param state Pointer to state
    */
   static void marginalize_slam(std::shared_ptr<State> state);
+
+  /**
+   * @brief Marginalize all SLAM features when resetting the system virtually
+   * @param state Pointer to state
+   */
+  static void marginalize_all_slam(std::shared_ptr<State> state);
+
 
 private:
   /**

@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   // params.num_opencv_threads = 0; // uncomment if you want repeatability
   // params.use_multi_threading_pubs = 0; // uncomment if you want repeatability
   params.use_multi_threading_subs = false;
-  sys = std::make_shared<VioManager>(params);
+  sys = std::make_shared<VioManager>(params, "default");
   viz = std::make_shared<ROS1Visualizer>(nh, sys);
 
   // Ensure we read in all parameters required
@@ -270,6 +270,8 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
       }
 
+      // also very dumb but make sure we have the right shared ptr
+      sys = viz->get_vio_manager();
       break;
     }
   }

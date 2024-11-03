@@ -495,21 +495,33 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
 
     // Check if the covariance is too large
     const double frobnorm = covariance_posori.norm();
-    PRINT_INFO(CYAN "Covariance Frobenius Norm: %.4f\n" RESET, frobnorm);
-    constexpr double threshold_covariance = 0.1; // TODO TUNE ME
-    // constexpr double threshold_covariance = 1.0;
+    PRINT_INFO(CYAN "@ %0.4f | Covariance Frobenius Norm: %.4f from VIOManager %s\n" RESET, message.timestamp, frobnorm,
+               _app->name.c_str());
+    
+    // TODO to be tuned!
+    constexpr double threshold_covariance = 1.0;
     if (frobnorm > threshold_covariance) {
       PRINT_ERROR("Covariance is too large! (%.3f) Resetting...\n", frobnorm);
 
-      Eigen::Matrix<double, 17, 1> reset_state;
-      reset_state(0, 0) = state->_timestamp;
-      reset_state.block(1, 0, 4, 1) = state->_imu->quat();     // Apart from position, we re-initialize with the curr state
-      reset_state.block(5, 0, 3, 1) = Eigen::Vector3d::Zero(); // Reset position
-      reset_state.block(8, 0, 3, 1) = state->_imu->vel();      // take the current velocity
-      reset_state.block(11, 0, 3, 1) = state->_imu->bias_g();  // take the current biases
-      reset_state.block(14, 0, 3, 1) = state->_imu->bias_a();  //
+      // Get rid of all features and clones
+      StateHelper::marginalize_all_clones(state);
+      StateHelper::marginalize_all_slam(state);
+      camera_queue.clear();
 
-      _app->initialize_with_gt(reset_state);
+      // Naive way, but we need to reset the state
+      reset_state = std::make_unique<Eigen::Matrix<double, 17, 1>>();
+      reset_state->block(1, 0, 4, 1) = state->_imu->quat(); // Apart from position, we re-initialize with the curr state
+      // reset_state->block(5, 0, 3, 1) = state->_imu->pos();  // cannot reset position so easily??
+      reset_state->block(5, 0, 3, 1) = Eigen::Vector3d::Zero(); // Reset position
+      reset_state->block(8, 0, 3, 1) = state->_imu->vel();     // take the current velocity
+      reset_state->block(11, 0, 3, 1) = state->_imu->bias_g(); // take the current biases
+      reset_state->block(14, 0, 3, 1) = state->_imu->bias_a(); //
+
+      // Destroy the current application and create a new one
+      VioManagerOptions currParams = _app->get_params();
+      _app.reset();
+      _app = std::make_shared<VioManager>(currParams, "reset"+std::to_string(reset_counter++));
+      PRINT_INFO(YELLOW "Reset VIOManager %s\n" RESET, _app->name.c_str());
     }
 
     thread_update_running = false;
@@ -566,8 +578,19 @@ void ROS1Visualizer::callback_monocular(const sensor_msgs::ImageConstPtr &msg0, 
 void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1, int cam_id0,
                                      int cam_id1) {
 
-  // Check if we should drop this image
   double timestamp = msg0->header.stamp.toSec();
+
+  // check if we need to reinit
+  if (reset_state) {
+    (*reset_state)(0, 0) = timestamp;
+    _app->initialize_with_gt(*reset_state);
+    reset_state.reset(); // Clear this so we do not reinit again
+    PRINT_INFO(YELLOW "Reinitialize VIOManager %s\n" RESET, _app->name.c_str());
+    PRINT_DEBUG(YELLOW "Number of states after reset: IMU clones: %d, SLAM features: %d\n" RESET, _app->get_state()->_clones_IMU.size(),
+               _app->get_state()->_features_SLAM.size());
+  }
+
+  // Check if we should drop this image
   double time_delta = 1.0 / _app->get_params().track_frequency;
   if (camera_last_timestamp.find(cam_id0) != camera_last_timestamp.end() && timestamp < camera_last_timestamp.at(cam_id0) + time_delta) {
     return;

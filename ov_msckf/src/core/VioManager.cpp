@@ -47,7 +47,7 @@ using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
 
-VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false), thread_init_success(false) {
+VioManager::VioManager(VioManagerOptions &params_, const std::string name) : thread_init_running(false), thread_init_success(false), name(name) {
 
   // Nice startup message
   PRINT_DEBUG("=======================================\n");

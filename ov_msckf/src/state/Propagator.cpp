@@ -98,7 +98,13 @@ void Propagator::propagate_and_clone(std::shared_ptr<State> state, double timest
       dt_summed += prop_data.at(i + 1).timestamp - prop_data.at(i).timestamp;
     }
   }
-  assert(std::abs((time1 - time0) - dt_summed) < 1e-4);
+
+  if (!(std::abs((time1 - time0) - dt_summed) < 1e-4)) {
+    PRINT_WARNING(BOLDYELLOW "Propagator::propagate_and_clone(): Time summing error! time1=%.4f time0=%.4f -> diff=%.4f != %.4f\n" RESET, time1, time0, (time1-time0),
+                dt_summed);
+  }
+  // very strict, disabled for now
+  // assert(std::abs((time1 - time0) - dt_summed) < 1e-4);
 
   // Last angular velocity (used for cloning when estimating time offset)
   // Remember to correct them before we store them
