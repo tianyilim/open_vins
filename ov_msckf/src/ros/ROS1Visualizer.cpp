@@ -499,7 +499,7 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
                _app->name.c_str());
     
     // TODO to be tuned!
-    constexpr double threshold_covariance = 1.0;
+    constexpr double threshold_covariance = 5.0;
     if (frobnorm > threshold_covariance) {
       PRINT_ERROR("Covariance is too large! (%.3f) Resetting...\n", frobnorm);
 
@@ -580,15 +580,16 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
 
   double timestamp = msg0->header.stamp.toSec();
 
-  // check if we need to reinit
-  if (reset_state) {
-    (*reset_state)(0, 0) = timestamp;
-    _app->initialize_with_gt(*reset_state);
-    reset_state.reset(); // Clear this so we do not reinit again
-    PRINT_INFO(YELLOW "Reinitialize VIOManager %s\n" RESET, _app->name.c_str());
-    PRINT_DEBUG(YELLOW "Number of states after reset: IMU clones: %d, SLAM features: %d\n" RESET, _app->get_state()->_clones_IMU.size(),
-               _app->get_state()->_features_SLAM.size());
-  }
+  // just let it do its thing
+  // // check if we need to reinit
+  // if (reset_state) {
+  //   (*reset_state)(0, 0) = timestamp;
+  //   _app->initialize_with_gt(*reset_state, true);
+  //   reset_state.reset(); // Clear this so we do not reinit again
+  //   PRINT_INFO(YELLOW "Reinitialize VIOManager %s\n" RESET, _app->name.c_str());
+  //   PRINT_DEBUG(YELLOW "Number of states after reset: IMU clones: %d, SLAM features: %d\n" RESET, _app->get_state()->_clones_IMU.size(),
+  //              _app->get_state()->_features_SLAM.size());
+  // }
 
   // Check if we should drop this image
   double time_delta = 1.0 / _app->get_params().track_frequency;
