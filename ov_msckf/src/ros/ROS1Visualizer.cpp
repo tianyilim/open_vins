@@ -483,6 +483,35 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
         PRINT_INFO(BLUE "[TIME]: %.4f seconds total (%.1f hz, %.2f ms behind)\n" RESET, time_total, 1.0 / time_total, update_dt);
       }
     }
+
+    // After processing, we need to check if the filter has diverged
+    // We do this by a simple check of the covariance for now.
+    // Retrieve the covariance
+    std::shared_ptr<State> state = _app->get_state();
+    std::vector<std::shared_ptr<Type>> statevars;
+    statevars.push_back(state->_imu->pose()->p());
+    statevars.push_back(state->_imu->pose()->q());
+    Eigen::Matrix<double, 6, 6> covariance_posori = StateHelper::get_marginal_covariance(_app->get_state(), statevars);
+
+    // Check if the covariance is too large
+    const double frobnorm = covariance_posori.norm();
+    PRINT_INFO(CYAN "Covariance Frobenius Norm: %.4f\n" RESET, frobnorm);
+    constexpr double threshold_covariance = 0.1; // TODO TUNE ME
+    // constexpr double threshold_covariance = 1.0;
+    if (frobnorm > threshold_covariance) {
+      PRINT_ERROR("Covariance is too large! (%.3f) Resetting...\n", frobnorm);
+
+      Eigen::Matrix<double, 17, 1> reset_state;
+      reset_state(0, 0) = state->_timestamp;
+      reset_state.block(1, 0, 4, 1) = state->_imu->quat();     // Apart from position, we re-initialize with the curr state
+      reset_state.block(5, 0, 3, 1) = Eigen::Vector3d::Zero(); // Reset position
+      reset_state.block(8, 0, 3, 1) = state->_imu->vel();      // take the current velocity
+      reset_state.block(11, 0, 3, 1) = state->_imu->bias_g();  // take the current biases
+      reset_state.block(14, 0, 3, 1) = state->_imu->bias_a();  //
+
+      _app->initialize_with_gt(reset_state);
+    }
+
     thread_update_running = false;
   });
 
